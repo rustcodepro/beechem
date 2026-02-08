@@ -1,0 +1,12 @@
+[package]
+name = "beechem"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.5.57", features = ["derive"] }
+figlet-rs = "0.1.5"
+ndarray-csv = "0.5.4"
+qsar = "0.0.2"
+rayon = "1.11.0"
+smartcore = { version = "0.4.9", features = ["ndarray-bindings"] }
