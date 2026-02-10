@@ -2,8 +2,13 @@ use linfa::Dataset;
 use linfa::prelude::*;
 use linfa_elasticnet::ElasticNet;
 use ndarray::Array1;
+use ndarray::ArrayBase;
 use qsar::{read_csv_descriptors, to_ndarrays};
 use std::error::Error;
+use std::fs::File;
+use std::io::Write;
+use std::io::{BufRead, BufReader};
+
 /*
 Gaurav Sablok
 codeprog@icloud.com
@@ -24,6 +29,27 @@ pub fn qsar_chem(path: &str, nfoldvalue: &str) -> Result<String, Box<dyn Error>>
     let mut best_score = f64::NEG_INFINITY;
     let mut best_params: Option<(f64, f64)> = None;
     let mut best_model: Option<ElasticNet<f64>> = None;
+
+     /*
+     * arraya prepare bee matrix
+     */
+
+     let fileopen = File::open(pathfile).expect("file not present");
+     let fileread = BufReader::new(fileopen);
+     let matrixvec: Vec<Vec<f64>> = Vec::new();
+     let matrixy: Vec<i32> = Vec::new();
+     for i in fileread.lines() {
+         let line = i.expect("fline not present");
+         let linevec = line.split("\t").collect::<Vec<_>>();
+         let matrixvector = linevec[0..linevec.len()-1].to_vec().iter(). map(|x| x.parse::<f64>().unwrap()).collect::<Vec<_>>();
+         let matrixlastcall = linevec[linevec.len()-1..linevec.len()].to_vec().iter().map(|x|x.parse::<i32>>().unwrap()).collect::<Vec<_>>().iter().cloned().flatten().collect::<Vec<i32>>();
+         matrixvec.push(matrixvector);
+         matrixy.push(matrixlastcall);
+     }
+
+     let densematrixa = ArrayBase::from_shape_vec((1,5), matrixvec).unwrap();
+     let densey = ArrayBase::from_vec(matrixy);
+
     // all hyperparameter combinations
     for &penalty in &penalties {
         for &l1_ratio in &l1_ratios {
