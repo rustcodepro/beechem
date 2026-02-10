@@ -6,11 +6,11 @@ edition = "2024"
 [dependencies]
 clap = { version = "4.5.57", features = ["derive"] }
 figlet-rs = "0.1.5"
-linfa = "0.8.1"
-linfa-elasticnet = "0.8.1"
-linfa-linear = "0.8.1"
-ndarray = "0.17.2"
-ndarray-stats = "0.7.0"
+linfa = "0.7.1"
+ndarray = "0.15"
+ndarray-csv = "0.5"
+linfa-elasticnet = "0.7.1"
 qsar = "0.0.2"
 rayon = "1.11.0"
-smartcore = { version = "0.4.9", features = ["ndarray-bindings"] }
+smartcore = { version = "0.4.9"}
+linfa-linear = "0.7.1"

@@ -1,12 +1,10 @@
-use linfa::Dataset;
+use linfa::dataset::Dataset;
 use linfa::prelude::*;
+use linfa::traits::Fit;
 use linfa_elasticnet::ElasticNet;
 use ndarray::Array1;
-use ndarray::ArrayBase;
-use qsar::{read_csv_descriptors, to_ndarrays};
 use std::error::Error;
 use std::fs::File;
-use std::io::Write;
 use std::io::{BufRead, BufReader};
 
 /*
@@ -14,48 +12,55 @@ Gaurav Sablok
 codeprog@icloud.com
 */
 
+/*
+let descriptor_cols = ["MW", "LogP", "TPSA", "HBD", "HBA"];
+let target_col = "pIC50";
+let (x, y) = read_csv_descriptors(pathfile, &descriptor_cols, target_col).unwrap();
+let (a, b) = to_ndarrays(x, y).unwrap();
+let dataset = Dataset::new(a, b);
+
+*/
+
 pub fn qsar_chem(path: &str, nfoldvalue: &str) -> Result<String, Box<dyn Error>> {
     let pathfile = path;
-    let descriptor_cols = ["MW", "LogP", "TPSA", "HBD", "HBA"];
-    let target_col = "pIC50";
-    let (x, y) = read_csv_descriptors(pathfile, &descriptor_cols, target_col).unwrap();
-    let (a, b) = to_ndarrays(x, y).unwrap();
-    let inputa = a;
-    let inputb = b;
-    let dataset = Dataset::new(inputa, inputb);
     let penalties = vec![0.001, 0.01, 0.1, 1.0];
     let l1_ratios = vec![0.0, 0.3, 0.5, 0.7, 1.0]; // 0 = ridge, 1 = lasso
     let n_folds = nfoldvalue.parse::<usize>().unwrap();
     let mut best_score = f64::NEG_INFINITY;
     let mut best_params: Option<(f64, f64)> = None;
     let mut best_model: Option<ElasticNet<f64>> = None;
-
-     /*
-     * arraya prepare bee matrix
-     */
-
-     let fileopen = File::open(pathfile).expect("file not present");
-     let fileread = BufReader::new(fileopen);
-     let matrixvec: Vec<Vec<f64>> = Vec::new();
-     let matrixy: Vec<i32> = Vec::new();
-     for i in fileread.lines() {
-         let line = i.expect("fline not present");
-         let linevec = line.split("\t").collect::<Vec<_>>();
-         let matrixvector = linevec[0..linevec.len()-1].to_vec().iter(). map(|x| x.parse::<f64>().unwrap()).collect::<Vec<_>>();
-         let matrixlastcall = linevec[linevec.len()-1..linevec.len()].to_vec().iter().map(|x|x.parse::<i32>>().unwrap()).collect::<Vec<_>>().iter().cloned().flatten().collect::<Vec<i32>>();
-         matrixvec.push(matrixvector);
-         matrixy.push(matrixlastcall);
-     }
-
-     let densematrixa = ArrayBase::from_shape_vec((1,5), matrixvec).unwrap();
-     let densey = ArrayBase::from_vec(matrixy);
+    let fileopen = File::open(pathfile).expect("file not present");
+    let fileread = BufReader::new(fileopen);
+    let mut matrixvec: Vec<Vec<f64>> = Vec::new();
+    let mut matrixy: Vec<f64> = Vec::new();
+    for i in fileread.lines() {
+        let line = i.expect("fline not present");
+        let linevec = line.split("\t").collect::<Vec<_>>();
+        let matrixvector = linevec[0..linevec.len() - 1]
+            .to_vec()
+            .iter()
+            .map(|x| x.parse::<f64>().unwrap())
+            .collect::<Vec<_>>();
+        let matrixlastcall = linevec[linevec.len() - 1..linevec.len()].to_vec()[0]
+            .parse::<f64>()
+            .unwrap();
+        matrixvec.push(matrixvector);
+        matrixy.push(matrixlastcall);
+    }
+    let xrows = matrixvec.len();
+    let xcols = matrixvec[0].len();
+    let xflat: Vec<f64> = matrixvec.into_iter().flatten().collect();
+    let xarray = ndarray::Array2::from_shape_vec((xrows, xcols), xflat).unwrap();
+    let yarray = ndarray::Array1::from_vec(matrixy);
+    let mut finaldataset = Dataset::new(xarray, yarray);
+    let samplecount = finaldataset.nsamples();
 
     // all hyperparameter combinations
     for &penalty in &penalties {
         for &l1_ratio in &l1_ratios {
             println!("Testing penalty={:.4}, l1_ratio={:.2}", penalty, l1_ratio);
             let mut cv_r2_scores = Vec::new();
-            for (fold_model, valid) in dataset.iter_fold(n_folds, |train| {
+            for (fold_model, valid) in finaldataset.iter_fold(n_folds, |train| {
                 ElasticNet::params()
                     .penalty(penalty)
                     .l1_ratio(l1_ratio)
@@ -78,7 +83,7 @@ pub fn qsar_chem(path: &str, nfoldvalue: &str) -> Result<String, Box<dyn Error>>
                     ElasticNet::params()
                         .penalty(penalty)
                         .l1_ratio(l1_ratio)
-                        .fit(&dataset)?,
+                        .fit(&finaldataset)?,
                 );
             }
         }
